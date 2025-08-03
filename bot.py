@@ -104,6 +104,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 • {localization_manager.get_text(user_id, "cmd_start")}
 • {localization_manager.get_text(user_id, "cmd_repo")}
 • {localization_manager.get_text(user_id, "cmd_repos")}
+• {localization_manager.get_text(user_id, "cmd_repo_disconnect")}
 • {localization_manager.get_text(user_id, "cmd_code")}
 • {localization_manager.get_text(user_id, "cmd_status")}
 • {localization_manager.get_text(user_id, "cmd_context")}
@@ -145,6 +146,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 {repo_commands}
 • /repo `<github_url>` - {localization_manager.get_text(user_id, "help_repo_desc")}
 • /repos - {localization_manager.get_text(user_id, "help_repos_desc")}
+• /repo_disconnect [clean] - {localization_manager.get_text(user_id, "help_repo_disconnect_desc")}
 • /status - {localization_manager.get_text(user_id, "help_status_desc")}
 
 {coding_commands}
@@ -297,6 +299,34 @@ async def repos_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         
     except Exception as e:
         logger.error(f"Error in repos command for user {user_id}: {e}")
+        await update.message.reply_text(localization_manager.get_text(user_id, "error_occurred"))
+
+async def repo_disconnect_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Disconnect from active repository command handler."""
+    user_id = update.effective_user.id
+    
+    if not security_manager.is_user_authorized(user_id):
+        await update.message.reply_text(localization_manager.get_text(user_id, "unauthorized"))
+        return
+    
+    try:
+        # Check if user wants to cleanup local files
+        cleanup_local = False
+        if context.args and context.args[0].lower() in ['clean', 'cleanup', 'delete']:
+            cleanup_local = True
+        
+        result = github_manager.disconnect_repo(user_id, cleanup_local)
+        
+        if result['success']:
+            message = localization_manager.get_text(user_id, "repo_disconnect_success", repo_name=result['repo_name'])
+            if result.get('local_cleanup'):
+                message += f"\n{localization_manager.get_text(user_id, 'repo_disconnect_cleanup')}"
+            await safe_send_message(update, message)
+        else:
+            await update.message.reply_text(localization_manager.get_text(user_id, "repo_disconnect_failed", error=result['error']))
+            
+    except Exception as e:
+        logger.error(f"Error in repo_disconnect command for user {user_id}: {e}")
         await update.message.reply_text(localization_manager.get_text(user_id, "error_occurred"))
 
 async def code_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -744,6 +774,7 @@ async def main() -> None:
     application.add_handler(CommandHandler('help', help_command))
     application.add_handler(CommandHandler('repo', repo_command))
     application.add_handler(CommandHandler('repos', repos_command))
+    application.add_handler(CommandHandler('repo_disconnect', repo_disconnect_command))
     application.add_handler(CommandHandler('code', code_command))
     application.add_handler(CommandHandler('status', status_command))
     application.add_handler(CommandHandler('context', context_command))

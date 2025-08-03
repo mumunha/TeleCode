@@ -57,7 +57,8 @@ class LocalizationManager:
                 # Command descriptions
                 "cmd_start": "/start - Show this help message",
                 "cmd_repo": "/repo `<github_url>` - Set active repository",
-                "cmd_repos": "/repos - List all connected repositories", 
+                "cmd_repos": "/repos - List all connected repositories",
+                "cmd_repo_disconnect": "/repo_disconnect [clean] - Disconnect from active repository", 
                 "cmd_code": "/code `<prompt>` - Ask questions or make code changes",
                 "cmd_status": "/status - Show current repository and usage stats",
                 "cmd_context": "/context - Show chat context history",
@@ -80,6 +81,7 @@ class LocalizationManager:
                 # Help descriptions
                 "help_repo_desc": "Set your active repository",
                 "help_repos_desc": "List all connected repositories and their status",
+                "help_repo_disconnect_desc": "Disconnect from active repository (add 'clean' to delete local files)",
                 "help_status_desc": "Show current repository, usage stats, and chat context",
                 "help_code_desc": "Ask questions or make code changes",
                 "help_code_readonly": "Read-only: \"explain the authentication flow\"",
@@ -117,6 +119,9 @@ class LocalizationManager:
                 "repo_failed": "❌ Failed to set repository: {error}",
                 "repo_access_denied": "❌ Access denied to repository: {repo_url}\n\nReason: {reason}",
                 "no_active_repo": "❌ No active repository set. Use /repo `<github_url>` first!",
+                "repo_disconnect_success": "✅ **Disconnected from repository:** {repo_name}",
+                "repo_disconnect_cleanup": "🧹 **Local files cleaned up.**",
+                "repo_disconnect_failed": "❌ Failed to disconnect from repository: {error}",
                 
                 # Code commands
                 "code_usage": "❌ Please provide a coding prompt.\n\n**Usage:** /code `<your_prompt>`\n**Example:** /code `fix the authentication bug in login.py`",
@@ -224,6 +229,7 @@ class LocalizationManager:
                 "cmd_start": "/start - Mostrar esta mensagem de ajuda",
                 "cmd_repo": "/repo `<github_url>` - Definir repositório ativo",
                 "cmd_repos": "/repos - Listar todos os repositórios conectados",
+                "cmd_repo_disconnect": "/repo_disconnect [clean] - Desconectar do repositório ativo",
                 "cmd_code": "/code `<prompt>` - Fazer perguntas ou alterações no código",
                 "cmd_status": "/status - Mostrar repositório atual e estatísticas de uso",
                 "cmd_context": "/context - Mostrar histórico do chat",
@@ -246,6 +252,7 @@ class LocalizationManager:
                 # Help descriptions
                 "help_repo_desc": "Definir seu repositório ativo",
                 "help_repos_desc": "Listar todos os repositórios conectados e seus status",
+                "help_repo_disconnect_desc": "Desconectar do repositório ativo (adicione 'clean' para deletar arquivos locais)",
                 "help_status_desc": "Mostrar repositório atual, estatísticas de uso e contexto do chat",
                 "help_code_desc": "Fazer perguntas ou alterações no código",
                 "help_code_readonly": "Somente leitura: \"explique o fluxo de autenticação\"",
@@ -283,6 +290,9 @@ class LocalizationManager:
                 "repo_failed": "❌ Falha ao definir repositório: {error}",
                 "repo_access_denied": "❌ Acesso negado ao repositório: {repo_url}\n\nMotivo: {reason}",
                 "no_active_repo": "❌ Nenhum repositório ativo definido. Use /repo `<github_url>` primeiro!",
+                "repo_disconnect_success": "✅ **Desconectado do repositório:** {repo_name}",
+                "repo_disconnect_cleanup": "🧹 **Arquivos locais limpos.**",
+                "repo_disconnect_failed": "❌ Falha ao desconectar do repositório: {error}",
                 
                 # Code commands
                 "code_usage": "❌ Por favor, forneça um prompt de codificação.\n\n**Uso:** /code `<seu_prompt>`\n**Exemplo:** /code `corrigir o bug de autenticação no login.py`",

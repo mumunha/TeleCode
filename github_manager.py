@@ -348,3 +348,34 @@ class GitHubManager:
             'total_repos': len(user_repos),
             'active_repo': self.get_active_repo(user_id)
         }
+    
+    def disconnect_repo(self, user_id: int, cleanup_local: bool = False) -> Dict[str, Any]:
+        """Disconnect user from their active repository."""
+        if user_id not in self.active_repos:
+            return {'success': False, 'error': 'No active repository to disconnect'}
+        
+        try:
+            repo_info = self.active_repos[user_id]
+            repo_name = repo_info.get('name', 'Unknown')
+            local_path = repo_info.get('local_path')
+            
+            # Remove from active repos
+            del self.active_repos[user_id]
+            
+            # Optionally cleanup local files
+            if cleanup_local and local_path:
+                local_path_obj = Path(local_path)
+                if local_path_obj.exists():
+                    shutil.rmtree(local_path_obj)
+                    logger.info(f"Cleaned up local repository for user {user_id}: {local_path}")
+            
+            logger.info(f"Disconnected user {user_id} from repository: {repo_name}")
+            return {
+                'success': True,
+                'repo_name': repo_name,
+                'local_cleanup': cleanup_local and local_path is not None
+            }
+            
+        except Exception as e:
+            logger.error(f"Error disconnecting repository for user {user_id}: {e}")
+            return {'success': False, 'error': str(e)}
