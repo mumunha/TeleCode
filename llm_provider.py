@@ -35,8 +35,25 @@ class LLMProvider:
             self.model = os.environ.get('OPENAI_MODEL', 'gpt-4')
             logger.info(f"Using OpenAI with model: {self.model}")
             
+        elif self.provider == 'openrouter':
+            # OpenRouter uses OpenAI-compatible API with custom headers
+            self.client = AsyncOpenAI(
+                api_key=os.environ.get('OPENROUTER_API_KEY'),
+                base_url="https://openrouter.ai/api/v1"
+            )
+            self.model = os.environ.get('OPENROUTER_MODEL', 'openai/gpt-4o')
+            
+            # Add optional headers for OpenRouter
+            self.openrouter_headers = {}
+            if os.environ.get('OPENROUTER_SITE_URL'):
+                self.openrouter_headers['HTTP-Referer'] = os.environ.get('OPENROUTER_SITE_URL')
+            if os.environ.get('OPENROUTER_SITE_NAME'):
+                self.openrouter_headers['X-Title'] = os.environ.get('OPENROUTER_SITE_NAME')
+                
+            logger.info(f"Using OpenRouter with model: {self.model}")
+            
         else:
-            raise ValueError(f"Unsupported LLM provider: {self.provider}. Supported providers: 'openai', 'together'")
+            raise ValueError(f"Unsupported LLM provider: {self.provider}. Supported providers: 'openai', 'together', 'openrouter'")
     
     async def generate_code_response(self, prompt: str, repo_path: str = None, chat_context: List[Dict[str, str]] = None) -> str:
         """Generate a response using the configured LLM provider."""
@@ -248,15 +265,22 @@ Always provide practical, actionable solutions that can be directly implemented.
         logger.info(f"🚀 Starting LLM API call to {self.provider} ({self.model})")
         
         try:
+            # Prepare request parameters
+            request_params = {
+                'model': self.model,
+                'messages': messages,
+                'max_tokens': int(os.environ.get('LLM_MAX_TOKENS', '8000')),
+                'temperature': float(os.environ.get('LLM_TEMPERATURE', '0.1')),
+                'stream': False
+            }
+            
+            # Add OpenRouter headers if using OpenRouter
+            if self.provider == 'openrouter' and hasattr(self, 'openrouter_headers'):
+                request_params['extra_headers'] = self.openrouter_headers
+            
             # Set timeout for API calls
             response = await asyncio.wait_for(
-                self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    max_tokens=int(os.environ.get('LLM_MAX_TOKENS', '8000')),
-                    temperature=float(os.environ.get('LLM_TEMPERATURE', '0.1')),
-                    stream=False
-                ),
+                self.client.chat.completions.create(**request_params),
                 timeout=timeout_seconds
             )
             
@@ -323,14 +347,21 @@ Always provide practical, actionable solutions that can be directly implemented.
         collected_content = []
         
         try:
+            # Prepare request parameters
+            request_params = {
+                'model': self.model,
+                'messages': messages,
+                'max_tokens': int(os.environ.get('LLM_MAX_TOKENS', '8000')),
+                'temperature': float(os.environ.get('LLM_TEMPERATURE', '0.1')),
+                'stream': True
+            }
+            
+            # Add OpenRouter headers if using OpenRouter
+            if self.provider == 'openrouter' and hasattr(self, 'openrouter_headers'):
+                request_params['extra_headers'] = self.openrouter_headers
+            
             stream = await asyncio.wait_for(
-                self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    max_tokens=int(os.environ.get('LLM_MAX_TOKENS', '8000')),
-                    temperature=float(os.environ.get('LLM_TEMPERATURE', '0.1')),
-                    stream=True
-                ),
+                self.client.chat.completions.create(**request_params),
                 timeout=timeout_seconds
             )
             
@@ -389,6 +420,8 @@ Always provide practical, actionable solutions that can be directly implemented.
                 return bool(os.environ.get('TOGETHER_API_KEY'))
             elif self.provider == 'openai':
                 return bool(os.environ.get('OPENAI_API_KEY'))
+            elif self.provider == 'openrouter':
+                return bool(os.environ.get('OPENROUTER_API_KEY'))
             return False
         except Exception:
             return False

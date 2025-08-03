@@ -49,8 +49,9 @@ The `LLMProvider` class in `llm_provider.py` abstracts multiple LLM providers:
 
 - **Together AI**: Uses AsyncOpenAI client with `https://api.together.xyz/v1` base URL, default model: `meta-llama/Llama-3.3-70B-Instruct-Turbo`
 - **OpenAI**: Direct AsyncOpenAI client integration, default model: `gpt-4`
+- **OpenRouter**: Uses AsyncOpenAI client with `https://openrouter.ai/api/v1` base URL, default model: `openai/gpt-4o`, supports optional site headers for leaderboards
 
-Provider selection is controlled by `LLM_PROVIDER` environment variable (options: `together`, `openai`). Each provider has specific system prompts optimized for code generation and repository context analysis.
+Provider selection is controlled by `LLM_PROVIDER` environment variable (options: `together`, `openai`, `openrouter`). Each provider has specific system prompts optimized for code generation and repository context analysis.
 
 ### File Creation Protocol
 
@@ -120,6 +121,15 @@ Environment variables are validated at startup based on selected LLM provider:
 - Security and rate limiting: `AUTHORIZED_TELEGRAM_USERS`, `MAX_REQUESTS_PER_*`
 - Chat context: `CHAT_CONTEXT_MAX_MESSAGES`
 - Git strategy: `GIT_STRATEGY` (direct/branch)
+
+### OpenRouter Configuration
+
+For OpenRouter provider, set:
+- `LLM_PROVIDER=openrouter`
+- `OPENROUTER_API_KEY` - Your OpenRouter API key
+- `OPENROUTER_MODEL` - Model name (default: `openai/gpt-4o`)
+- `OPENROUTER_SITE_URL` - Optional: Your site URL for leaderboards
+- `OPENROUTER_SITE_NAME` - Optional: Your site name for leaderboards
 
 ## Deployment Architecture
 

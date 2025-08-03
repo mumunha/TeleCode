@@ -749,8 +749,10 @@ async def main() -> None:
         required_vars.append('TOGETHER_API_KEY')
     elif llm_provider_type == 'openai':
         required_vars.append('OPENAI_API_KEY')
+    elif llm_provider_type == 'openrouter':
+        required_vars.append('OPENROUTER_API_KEY')
     else:
-        logger.error(f"Unsupported LLM provider: {llm_provider_type}. Supported providers: 'openai', 'together'")
+        logger.error(f"Unsupported LLM provider: {llm_provider_type}. Supported providers: 'openai', 'together', 'openrouter'")
         return
     
     missing_vars = [var for var in required_vars if not os.environ.get(var)]
