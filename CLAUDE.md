@@ -188,6 +188,7 @@ Python, JavaScript, TypeScript, Java, C/C++, C#, Go, Rust, PHP, Ruby, Swift, Kot
 
 ### Code Operations
 - `/code <prompt>` - Execute coding tasks (analysis, file changes, etc.)
+- `/ask <question>` - Analyze codebase and answer questions (read-only, no changes)
 
 ### Chat Context Management
 - `/context` - View recent conversation history
@@ -197,7 +198,7 @@ Python, JavaScript, TypeScript, Java, C/C++, C#, Go, Rust, PHP, Ruby, Swift, Kot
 ## Bot Workflow Example
 
 1. Set repository: `/repo https://github.com/username/my-project`
-2. Ask questions: `/code explain the authentication system`  
+2. Ask questions: `/ask explain the authentication system`  
 3. Make changes: `/code add input validation to the login form`
 4. Check context: `/tokens` to see token usage
 5. Clear history: `/clear` when starting new topic

@@ -40,6 +40,7 @@
 - `/help` - Show detailed help information
 - `/repo <github_url>` - Set your active repository
 - `/code <prompt>` - Execute a coding task
+- `/ask <question>` - Analyze code and answer questions (read-only)
 - `/status` - Check current repository and usage stats
 
 ## Quick Start
@@ -113,10 +114,10 @@ AUTHORIZED_TELEGRAM_USERS=your_telegram_user_id
 
 2. **Execute coding tasks**:
    ```
-   /code fix the authentication bug in login.py
    /code add input validation to the user registration form
    /code refactor the database connection module
-   /code add unit tests for the API endpoints
+   /ask explain how the authentication system works
+   /ask where is the login function defined
    ```
 
 3. **Check status**:

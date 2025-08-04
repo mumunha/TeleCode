@@ -159,6 +159,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 • /code `<prompt>` - {localization_manager.get_text(user_id, "help_code_desc")}
   - {localization_manager.get_text(user_id, "help_code_readonly")}
   - {localization_manager.get_text(user_id, "help_code_changes")}
+• /ask `<question>` - {localization_manager.get_text(user_id, "help_ask_desc")}
 
 {context_commands}
 • /context - {localization_manager.get_text(user_id, "help_context_desc")}
@@ -173,9 +174,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 {usage_examples}
 • /repo `https://github.com/username/my-project`
-• /code `explain how the user authentication works`
 • /code `add input validation to the login form`
-• /code `refactor the database connection module`
+• /ask `explain how the user authentication works`
+• /ask `where is the login function defined`
 • /tokens - See how many tokens your context is using
 
 {security}
@@ -769,6 +770,130 @@ async def provider_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         logger.error(f"Error in provider command for user {user_id}: {e}")
         await update.message.reply_text(localization_manager.get_text(user_id, "error_occurred"))
 
+async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Ask command handler - analyze codebase and answer questions without making changes."""
+    user_id = update.effective_user.id
+    
+    if not security_manager.is_user_authorized(user_id):
+        await update.message.reply_text(localization_manager.get_text(user_id, "unauthorized"))
+        return
+    
+    rate_check = security_manager.check_rate_limit(user_id)
+    if not rate_check['allowed']:
+        if rate_check['reason'] == 'hourly_limit_exceeded':
+            await update.message.reply_text(
+                f"⏰ Hourly rate limit exceeded. Try again in {rate_check['reset_in_minutes']} minutes."
+            )
+        else:
+            await update.message.reply_text(
+                f"⏰ Daily rate limit exceeded. Try again in {rate_check['reset_in_hours']} hours."
+            )
+        return
+    
+    if not context.args:
+        user_lang = localization_manager.get_user_language(user_id)
+        if user_lang == 'pt-br':
+            message = "📖 **Como usar o comando /ask:**\n\n"
+            message += "Use `/ask` seguido da sua pergunta para analisar o código e obter respostas sem fazer alterações.\n\n"
+            message += "**Exemplos:**\n"
+            message += "• `/ask explique como funciona a autenticação`\n"
+            message += "• `/ask onde está definida a função de login`\n"
+            message += "• `/ask quais são as principais classes neste projeto`\n"
+            message += "• `/ask como funciona o sistema de rate limiting`\n\n"
+            message += "ℹ️ Este comando apenas *analisa* o código - não faz alterações nem commits."
+        else:
+            message = "📖 **How to use the /ask command:**\n\n"
+            message += "Use `/ask` followed by your question to analyze code and get answers without making changes.\n\n"
+            message += "**Examples:**\n"
+            message += "• `/ask explain how authentication works`\n"
+            message += "• `/ask where is the login function defined`\n"
+            message += "• `/ask what are the main classes in this project`\n"
+            message += "• `/ask how does the rate limiting system work`\n\n"
+            message += "ℹ️ This command only *analyzes* code - it doesn't make changes or commits."
+        await safe_send_message(update, message)
+        return
+    
+    # Check if repository is set
+    repo_info = github_manager.get_active_repo(user_id)
+    if not repo_info:
+        await update.message.reply_text(localization_manager.get_text(user_id, "no_active_repo"))
+        return
+    
+    prompt = ' '.join(context.args)
+    
+    await update.message.reply_text("📖 Analyzing codebase to answer your question...", parse_mode='Markdown')
+    
+    try:
+        # Always ensure repository is available locally for context
+        clone_result = await github_manager.clone_or_update_repo(user_id)
+        if not clone_result['success']:
+            await update.message.reply_text(f"❌ Failed to access repository: {clone_result['error']}")
+            return
+        
+        # Get current repository context for chat history
+        repo_info = github_manager.get_active_repo(user_id)
+        current_repo = repo_info['name'] if repo_info else None
+        
+        # Add user message to chat context
+        chat_context_manager.add_user_message(user_id, f"/ask {prompt}", current_repo)
+        
+        # Get chat context for LLM
+        chat_context = chat_context_manager.get_context_for_llm(user_id)
+        
+        # Execute LLM Provider with repository and chat context for analysis only
+        provider_info = llm_provider.get_provider_info()
+        if chat_context:
+            user_lang = localization_manager.get_user_language(user_id)
+            if user_lang == 'pt-br':
+                context_info = f" ({len(chat_context)} mensagens de contexto)"
+            else:
+                context_info = f" (with {len(chat_context)} messages context)"
+        else:
+            context_info = ""
+            
+        user_lang = localization_manager.get_user_language(user_id)
+        if user_lang == 'pt-br':
+            analyzing_msg = f"🔍 Analisando código com **{provider_info['provider'].title()}** ({provider_info['model']}){context_info}..."
+        else:
+            analyzing_msg = f"🔍 Analyzing code with **{provider_info['provider'].title()}** ({provider_info['model']}){context_info}..."
+            
+        await update.message.reply_text(analyzing_msg, parse_mode='Markdown')
+        
+        try:
+            # Generate read-only analysis response
+            final_response = await llm_provider.generate_analysis_response(
+                prompt, 
+                clone_result['local_path'],
+                chat_context
+            )
+        except Exception as llm_error:
+            logger.error(f"LLM generation failed for user {user_id}: {llm_error}")
+            # Send specific error message to user
+            await update.message.reply_text(f"❌ Error analyzing code: {str(llm_error)}")
+            return
+        
+        if not final_response:
+            user_lang = localization_manager.get_user_language(user_id)
+            if user_lang == 'pt-br':
+                await update.message.reply_text("❌ Não foi possível gerar uma resposta. Tente novamente.")
+            else:
+                await update.message.reply_text("❌ Could not generate a response. Please try again.")
+            return
+        
+        # Add AI response to chat context
+        chat_context_manager.add_ai_message(user_id, final_response, current_repo)
+        
+        # Send the analysis response to user
+        await safe_send_message(update, final_response)
+        
+    except Exception as e:
+        logger.error(f"Error in ask command for user {user_id}: {e}")
+        user_lang = localization_manager.get_user_language(user_id)
+        if user_lang == 'pt-br':
+            await update.message.reply_text(f"❌ Erro ao analisar o código: {str(e)}")
+        else:
+            await update.message.reply_text(f"❌ Error analyzing code: {str(e)}")
+
 async def revert_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Revert last commit command handler."""
     user_id = update.effective_user.id
@@ -1042,6 +1167,7 @@ async def main() -> None:
     application.add_handler(CommandHandler('repos', repos_command))
     application.add_handler(CommandHandler('repo_disconnect', repo_disconnect_command))
     application.add_handler(CommandHandler('code', code_command))
+    application.add_handler(CommandHandler('ask', ask_command))
     application.add_handler(CommandHandler('status', status_command))
     application.add_handler(CommandHandler('context', context_command))
     application.add_handler(CommandHandler('tokens', tokens_command))

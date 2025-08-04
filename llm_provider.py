@@ -56,6 +56,34 @@ class LLMProvider:
         else:
             raise ValueError(f"Unsupported LLM provider: {self.provider}. Supported providers: 'openai', 'together', 'openrouter'")
     
+    async def generate_analysis_response(self, prompt: str, repo_path: str = None, chat_context: List[Dict[str, str]] = None) -> str:
+        """Generate a read-only analysis response using the configured LLM provider."""
+        max_retries = int(os.environ.get('LLM_MAX_RETRIES', '2'))
+        retry_delay = float(os.environ.get('LLM_RETRY_DELAY', '5.0'))
+        
+        for attempt in range(max_retries + 1):
+            try:
+                return await self._generate_analysis_with_openai_compatible(prompt, repo_path, chat_context)
+                    
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(f"Error generating analysis response with {self.provider} (attempt {attempt + 1}/{max_retries + 1}): {e}")
+                
+                # Don't retry certain types of errors
+                if any(keyword in error_msg.lower() for keyword in ['authentication', 'unauthorized', 'token limit', 'rate limit']):
+                    logger.info("Not retrying due to error type")
+                    raise
+                
+                # If this was the last attempt, raise the error
+                if attempt == max_retries:
+                    raise
+                
+                # Wait before retrying
+                if attempt < max_retries:
+                    import asyncio
+                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    await asyncio.sleep(retry_delay)
+    
     async def generate_code_response(self, prompt: str, repo_path: str = None, chat_context: List[Dict[str, str]] = None) -> str:
         """Generate a response using the configured LLM provider."""
         max_retries = int(os.environ.get('LLM_MAX_RETRIES', '2'))
@@ -89,6 +117,50 @@ class LLMProvider:
                     logger.info(f"Retrying in {retry_delay} seconds...")
                     await asyncio.sleep(retry_delay)
     
+    async def _generate_analysis_with_openai_compatible(self, prompt: str, repo_path: str = None, chat_context: List[Dict[str, str]] = None) -> str:
+        """Generate analysis response using OpenAI-compatible API - read-only, no file changes."""
+        
+        # Build context-aware prompt for analysis tasks (read-only)
+        system_prompt = self._build_analysis_system_prompt(repo_path)
+        
+        messages = [{"role": "system", "content": system_prompt}]
+        
+        # Add chat context if available (preserve conversation history)
+        if chat_context:
+            messages.extend(chat_context)
+        
+        # Add current prompt
+        messages.append({"role": "user", "content": prompt})
+        
+        # Add comprehensive repository context if available
+        if repo_path and os.path.exists(repo_path):
+            try:
+                context_result = self.advanced_context.get_comprehensive_context(repo_path, prompt)
+                formatted_context = self.advanced_context.format_context_for_llm(context_result)
+                
+                if formatted_context:
+                    messages.insert(-1, {
+                        "role": "system", 
+                        "content": f"Repository context:\n{formatted_context}"
+                    })
+                    logger.info(f"Added comprehensive context: {context_result.total_files} files, ~{context_result.total_tokens} tokens")
+            except Exception as e:
+                logger.error(f"Error getting repository context: {e}")
+        
+        try:
+            # Call the LLM
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                max_tokens=int(os.environ.get('LLM_MAX_TOKENS', '4000')),
+                temperature=float(os.environ.get('LLM_TEMPERATURE', '0.1'))
+            )
+            
+            return response.choices[0].message.content.strip()
+            
+        except Exception as e:
+            logger.error(f"Error calling {self.provider} API: {e}")
+            raise
     
     async def _generate_with_openai_compatible(self, prompt: str, repo_path: str = None, chat_context: List[Dict[str, str]] = None) -> str:
         """Generate response using OpenAI-compatible API (Together AI, OpenAI, etc.)."""
@@ -169,6 +241,44 @@ class LLMProvider:
         
         response = await self._make_streaming_api_call(messages)
         return response
+    
+    def _build_analysis_system_prompt(self, repo_path: str = None) -> str:
+        """Build system prompt for read-only analysis tasks.""" 
+        base_prompt = """You are an expert software engineer and code analyst. You help developers understand their codebase by:
+
+1. Analyzing code structure and architecture
+2. Explaining how systems work
+3. Identifying patterns and best practices
+4. Answering questions about functionality
+5. Providing insights without making changes
+
+When analyzing code:
+- Read and understand the existing codebase structure
+- Explain concepts clearly and thoroughly
+- Provide examples from the actual codebase when relevant
+- Focus on understanding rather than modification
+- Answer questions based on the actual code you can see
+
+IMPORTANT: You are in READ-ONLY mode. Do NOT:
+- Suggest file changes or modifications
+- Provide code to create new files
+- Recommend specific implementations
+- Use the **File: filename.ext** format (this is only for modifications)
+
+Instead:
+- Explain how existing code works
+- Answer questions about the codebase
+- Provide analysis and insights
+- Reference specific files and functions that exist
+- Help users understand the current implementation
+
+Always provide clear, informative answers based on the actual codebase structure and content."""
+
+        if repo_path:
+            base_prompt += f"\n\nYou are currently analyzing the repository at: {repo_path}"
+            base_prompt += "\nFocus on understanding and explaining the existing codebase structure and functionality."
+            
+        return base_prompt
     
     def _build_system_prompt(self, repo_path: str = None) -> str:
         """Build system prompt for coding tasks."""
