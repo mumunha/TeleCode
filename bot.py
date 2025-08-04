@@ -112,7 +112,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 • {localization_manager.get_text(user_id, "cmd_clear")}
 • {localization_manager.get_text(user_id, "cmd_help")}
 • {localization_manager.get_text(user_id, "cmd_lang")}
-• {localization_manager.get_text(user_id, "cmd_model")}
+• {localization_manager.get_text(user_id, "cmd_provider")}
 
 {example_header}
 /repo `https://github.com/user/repo`
@@ -164,7 +164,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 • /start - {localization_manager.get_text(user_id, "help_start_desc")}
 • /help - {localization_manager.get_text(user_id, "help_help_desc")}
 • /lang - {localization_manager.get_text(user_id, "help_lang_desc")}
-• /model [provider] [model] - {localization_manager.get_text(user_id, "help_model_desc")}
+• /provider - {localization_manager.get_text(user_id, "help_provider_desc")}
 
 {usage_examples}
 • /repo `https://github.com/username/my-project`
@@ -714,8 +714,8 @@ async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         logger.error(f"Error in lang command for user {user_id}: {e}")
         await update.message.reply_text(localization_manager.get_text(user_id, "error_occurred"))
 
-async def model_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Model/provider selection command handler."""
+async def provider_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Provider selection command handler with interactive selection."""
     user_id = update.effective_user.id
     
     if not security_manager.is_user_authorized(user_id):
@@ -723,60 +723,50 @@ async def model_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         return
     
     try:
-        if not context.args:
-            # Show current provider/model and available options
-            provider_info = llm_provider.get_available_providers()
-            
-            message = f"🤖 **Current LLM Configuration:**\n\n"
-            message += f"**Active Provider:** {provider_info['current_provider'].title()}\n"
-            message += f"**Active Model:** {llm_provider.model}\n\n"
-            
-            message += f"**Available Providers ({provider_info['available_count']}/3):**\n\n"
-            
-            for provider_key, provider_data in provider_info['providers'].items():
-                status_emoji = "✅" if provider_data['available'] else "❌"
-                active_emoji = "🔹 " if provider_key == provider_info['current_provider'] else ""
+        # Show current provider/model and available options with interactive buttons
+        provider_info = llm_provider.get_available_providers()
+        
+        message = f"🤖 **Current LLM Configuration:**\n\n"
+        message += f"**Active Provider:** {provider_info['current_provider'].title()}\n"
+        message += f"**Active Model:** {llm_provider.model}\n\n"
+        
+        message += f"**Available Providers ({provider_info['available_count']}/3):**\n\n"
+        
+        # Build keyboard with available providers
+        keyboard = []
+        
+        for provider_key, provider_data in provider_info['providers'].items():
+            if provider_data['available']:
+                status_emoji = "🔹" if provider_key == provider_info['current_provider'] else "✅"
+                button_text = f"{status_emoji} {provider_data['name']}"
+                keyboard.append([button_text])
                 
-                message += f"{active_emoji}{status_emoji} **{provider_data['name']}**\n"
+                # Add provider info to message
+                active_emoji = "🔹 " if provider_key == provider_info['current_provider'] else ""
+                message += f"{active_emoji}✅ **{provider_data['name']}**\n"
                 message += f"   • Model: {provider_data['current_model']}\n"
-                if not provider_data['available']:
-                    message += f"   • Status: Missing API key\n"
+                if provider_key == provider_info['current_provider']:
+                    message += f"   • Status: Currently Active\n"
                 message += "\n"
-            
-            message += "**Usage:**\n"
-            message += "• `/model <provider>` - Switch provider (e.g., `/model openai`)\n"
-            message += "• `/model <provider> <model>` - Switch provider and model\n"
-            message += "• Available providers: `openai`, `together`, `openrouter`\n\n"
-            message += "**Examples:**\n"
-            message += "• `/model openai`\n"
-            message += "• `/model together meta-llama/Llama-3.3-70B-Instruct-Turbo`\n"
-            message += "• `/model openrouter anthropic/claude-3-sonnet`"
-            
-            await safe_send_message(update, message)
-            return
         
-        # User wants to change provider/model
-        new_provider = context.args[0].lower()
-        new_model = ' '.join(context.args[1:]) if len(context.args) > 1 else None
+        # Add unavailable providers to message (but not to keyboard)
+        for provider_key, provider_data in provider_info['providers'].items():
+            if not provider_data['available']:
+                message += f"❌ **{provider_data['name']}**\n"
+                message += f"   • Model: {provider_data['current_model']}\n"
+                message += f"   • Status: Missing API key\n\n"
         
-        # Attempt to change provider
-        result = llm_provider.change_provider(new_provider, new_model)
-        
-        if result['success']:
-            message = f"✅ **LLM Provider Changed Successfully!**\n\n"
-            message += f"**From:** {result['old_provider'].title()} ({result['old_model']})\n"
-            message += f"**To:** {result['new_provider'].title()} ({result['new_model']})\n\n"
-            message += "The new provider will be used for all future `/code` requests."
-            
-            await safe_send_message(update, message)
+        if len(keyboard) > 1:  # Only show keyboard if there are providers to switch to
+            message += "**Select a provider below:**"
+            reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
+            await update.message.reply_text(message, reply_markup=reply_markup)
         else:
-            message = f"❌ **Failed to change LLM provider:**\n\n{result['error']}\n\n"
-            message += "Use `/model` without arguments to see available providers."
-            
+            message += "**No alternative providers available.**\n"
+            message += "Configure additional API keys to enable provider switching."
             await safe_send_message(update, message)
             
     except Exception as e:
-        logger.error(f"Error in model command for user {user_id}: {e}")
+        logger.error(f"Error in provider command for user {user_id}: {e}")
         await update.message.reply_text(localization_manager.get_text(user_id, "error_occurred"))
 
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -793,6 +783,36 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             await update.message.reply_text(success_msg)
         else:
             await update.message.reply_text(localization_manager.get_text(user_id, "error_occurred"))
+        return
+    
+    # Check if this is a provider selection
+    provider_buttons = ["🔹 OpenAI", "✅ OpenAI", "🔹 Together AI", "✅ Together AI", "🔹 OpenRouter", "✅ OpenRouter"]
+    if message_text in provider_buttons:
+        # Extract provider name from button text
+        provider_map = {
+            "🔹 OpenAI": "openai",
+            "✅ OpenAI": "openai",
+            "🔹 Together AI": "together",
+            "✅ Together AI": "together",
+            "🔹 OpenRouter": "openrouter",
+            "✅ OpenRouter": "openrouter"
+        }
+        
+        new_provider = provider_map.get(message_text)
+        if new_provider:
+            # Attempt to change provider
+            result = llm_provider.change_provider(new_provider)
+            
+            if result['success']:
+                message = f"✅ **LLM Provider Changed Successfully!**\n\n"
+                message += f"**From:** {result['old_provider'].title()} ({result['old_model']})\n"
+                message += f"**To:** {result['new_provider'].title()} ({result['new_model']})\n\n"
+                message += "The new provider will be used for all future `/code` requests."
+                
+                await safe_send_message(update, message)
+            else:
+                message = f"❌ **Failed to change LLM provider:**\n\n{result['error']}"
+                await safe_send_message(update, message)
         return
     
     # Default echo response
@@ -857,7 +877,7 @@ async def main() -> None:
     application.add_handler(CommandHandler('tokens', tokens_command))
     application.add_handler(CommandHandler('clear', clear_command))
     application.add_handler(CommandHandler('lang', lang_command))
-    application.add_handler(CommandHandler('model', model_command))
+    application.add_handler(CommandHandler('provider', provider_command))
     
     # Add message handler for non-commands
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
