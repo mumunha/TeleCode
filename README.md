@@ -64,7 +64,7 @@
 
 ### 2. Deploy to Railway
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/your-template-id)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.com/deploy/telecode?referralCode=YC-2HP)
 
 1. Click the deploy button above
 2. Set the following environment variables:
