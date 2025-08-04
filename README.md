@@ -152,15 +152,15 @@ AUTHORIZED_TELEGRAM_USERS=your_telegram_user_id
 
 ### LLM Provider Options
 
+**OpenRouter**
+- `qwen/qwen3-coder:free`
+
+
 **Together AI (Recommended - Cost Effective)**
 - `meta-llama/Llama-3.3-70B-Instruct-Turbo` (Default)
 - `meta-llama/Llama-3.1-70B-Instruct-Turbo`
 - `mistralai/Mixtral-8x7B-Instruct-v0.1`
 - `microsoft/WizardLM-2-8x22B`
-
-**Anthropic Claude (High Quality)**
-- Uses Claude Code SDK with latest Claude models
-- Best for complex code analysis and generation
 
 **OpenAI (Reliable)**
 - `gpt-4` (Default)
