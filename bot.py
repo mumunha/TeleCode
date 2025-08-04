@@ -116,6 +116,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 • {localization_manager.get_text(user_id, "cmd_help")}
 • {localization_manager.get_text(user_id, "cmd_lang")}
 • {localization_manager.get_text(user_id, "cmd_provider")}
+• {localization_manager.get_text(user_id, "cmd_revert")}
 
 {example_header}
 /repo `https://github.com/user/repo`
@@ -152,6 +153,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 • /repos - {localization_manager.get_text(user_id, "help_repos_desc")}
 • /repo_disconnect [clean] - {localization_manager.get_text(user_id, "help_repo_disconnect_desc")}
 • /status - {localization_manager.get_text(user_id, "help_status_desc")}
+• /revert - {localization_manager.get_text(user_id, "help_revert_desc")}
 
 {coding_commands}
 • /code `<prompt>` - {localization_manager.get_text(user_id, "help_code_desc")}
@@ -758,6 +760,63 @@ async def provider_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         logger.error(f"Error in provider command for user {user_id}: {e}")
         await update.message.reply_text(localization_manager.get_text(user_id, "error_occurred"))
 
+async def revert_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Revert last commit command handler."""
+    user_id = update.effective_user.id
+    
+    if not security_manager.is_user_authorized(user_id):
+        await update.message.reply_text(localization_manager.get_text(user_id, "unauthorized"))
+        return
+    
+    # Check rate limit
+    rate_limit_result = security_manager.can_make_request(user_id)
+    if not rate_limit_result['allowed']:
+        if rate_limit_result['limit_type'] == 'hourly':
+            minutes_left = rate_limit_result['reset_in'] // 60
+            await update.message.reply_text(
+                localization_manager.get_text(user_id, "hourly_limit", minutes=minutes_left)
+            )
+        else:
+            hours_left = rate_limit_result['reset_in'] // 3600
+            await update.message.reply_text(
+                localization_manager.get_text(user_id, "daily_limit", hours=hours_left)
+            )
+        return
+    
+    try:
+        # Check if user has an active repository
+        active_repo = github_manager.get_active_repo(user_id)
+        if not active_repo:
+            await update.message.reply_text(localization_manager.get_text(user_id, "no_active_repo"))
+            return
+        
+        # Send processing message
+        processing_msg = localization_manager.get_text(user_id, "revert_processing")
+        await update.message.reply_text(processing_msg)
+        
+        # Revert the last commit
+        revert_result = github_manager.revert_last_commit(user_id)
+        
+        if revert_result['success']:
+            response = localization_manager.get_text(user_id, "revert_success")
+            response += f"\n\n**Repository:** {revert_result['repo_name']}\n"
+            response += f"**Branch:** {revert_result['branch']}\n"
+            response += f"**Reverted Commit:** {revert_result['reverted_commit'][:8]}\n"
+            response += f"**Revert Commit:** [View Changes]({revert_result['revert_commit_url']})"
+            
+            # Check if this is main branch for Railway auto-deploy message
+            if revert_result.get('is_main_branch', False):
+                response += f"\n\n{localization_manager.get_text(user_id, 'code_railway_deploy')}"
+            
+            await safe_send_message(update, response)
+        else:
+            error_msg = localization_manager.get_text(user_id, "revert_failed", error=revert_result['error'])
+            await update.message.reply_text(error_msg)
+            
+    except Exception as e:
+        logger.error(f"Error in revert command for user {user_id}: {e}")
+        await update.message.reply_text(localization_manager.get_text(user_id, "error_occurred"))
+
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle text messages including language selection."""
     user_id = update.effective_user.id
@@ -982,6 +1041,7 @@ async def main() -> None:
     application.add_handler(CommandHandler('clear', clear_command))
     application.add_handler(CommandHandler('lang', lang_command))
     application.add_handler(CommandHandler('provider', provider_command))
+    application.add_handler(CommandHandler('revert', revert_command))
     
     # Add message handler for non-commands
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))

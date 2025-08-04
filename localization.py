@@ -67,6 +67,7 @@ class LocalizationManager:
                 "cmd_help": "/help - Show detailed help",
                 "cmd_lang": "/lang - Change language (English/Portuguese)",
                 "cmd_provider": "/provider - Change LLM provider",
+                "cmd_revert": "/revert - Revert the last commit",
                 
                 # Help command
                 "help_title": "📚 **TeleCode Bot Help**",
@@ -94,6 +95,7 @@ class LocalizationManager:
                 "help_help_desc": "Show this detailed help (current command)",
                 "help_lang_desc": "Change language between English and Portuguese",
                 "help_provider_desc": "Change LLM provider (openai/together/openrouter) with interactive selection",
+                "help_revert_desc": "Revert (undo) the last commit in your active repository",
                 
                 # Security text
                 "help_security_text": "• All operations are logged for security\n• Rate limits apply to prevent abuse (see /status)\n• Only authorized users can access the bot\n• Chat context is persistent and private per user",
@@ -235,6 +237,11 @@ class LocalizationManager:
                 "approval_no_pending": "ℹ️ **No Pending Approval**",
                 "approval_no_pending_desc": "You don't have any changes waiting for approval.",
                 "approval_error": "❌ **Approval Error:** {error}",
+                
+                # Revert command
+                "revert_processing": "🔄 **Reverting last commit...**\nThis may take a moment.",
+                "revert_success": "✅ **Last commit reverted successfully!**",
+                "revert_failed": "❌ **Failed to revert last commit:** {error}",
             },
             
             "pt-br": {
@@ -258,6 +265,7 @@ class LocalizationManager:
                 "cmd_help": "/help - Mostrar ajuda detalhada",
                 "cmd_lang": "/lang - Alterar idioma (Inglês/Português)",
                 "cmd_provider": "/provider - Alterar provedor LLM",
+                "cmd_revert": "/revert - Reverter o último commit",
                 
                 # Help command
                 "help_title": "📚 **Ajuda do TeleCode Bot**",
@@ -285,6 +293,7 @@ class LocalizationManager:
                 "help_help_desc": "Mostrar esta ajuda detalhada (comando atual)",
                 "help_lang_desc": "Alterar idioma entre Inglês e Português",
                 "help_provider_desc": "Alterar provedor LLM (openai/together/openrouter) com seleção interativa",
+                "help_revert_desc": "Reverter (desfazer) o último commit no seu repositório ativo",
                 
                 # Security text
                 "help_security_text": "• Todas as operações são registradas para segurança\n• Limites de taxa se aplicam para prevenir abuso (veja /status)\n• Apenas usuários autorizados podem acessar o bot\n• Contexto do chat é persistente e privado por usuário",
@@ -426,6 +435,11 @@ class LocalizationManager:
                 "approval_no_pending": "ℹ️ **Nenhuma Aprovação Pendente**",
                 "approval_no_pending_desc": "Você não tem alterações aguardando aprovação.",
                 "approval_error": "❌ **Erro de Aprovação:** {error}",
+                
+                # Revert command
+                "revert_processing": "🔄 **Revertendo último commit...**\nIsso pode levar um momento.",
+                "revert_success": "✅ **Último commit revertido com sucesso!**",
+                "revert_failed": "❌ **Falha ao reverter último commit:** {error}",
             }
         }
     

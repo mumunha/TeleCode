@@ -205,6 +205,94 @@ class GitHubManager:
             logger.error(f"Error committing for user {user_id}: {e}")
             return {'success': False, 'error': str(e)}
     
+    def revert_last_commit(self, user_id: int) -> Dict[str, Any]:
+        """Revert the last commit in the repository."""
+        if user_id not in self.active_repos:
+            return {'success': False, 'error': 'No active repository set'}
+        
+        repo_info = self.active_repos[user_id]
+        if 'git_repo' not in repo_info:
+            return {'success': False, 'error': 'Repository not cloned locally'}
+        
+        try:
+            git_repo = repo_info['git_repo']
+            current_branch = git_repo.active_branch.name
+            
+            # Get the last commit
+            last_commit = git_repo.head.commit
+            
+            # Check if there's a previous commit to revert to
+            if not last_commit.parents:
+                return {'success': False, 'error': 'Cannot revert initial commit - no previous commit exists'}
+            
+            # Check if there are uncommitted changes
+            if git_repo.is_dirty() or git_repo.git.diff('--cached'):
+                return {'success': False, 'error': 'Repository has uncommitted changes. Commit or stash them first'}
+            
+            # Get commit info before reverting
+            commit_sha = last_commit.hexsha
+            commit_message = last_commit.message.strip()
+            
+            # Create a revert commit
+            try:
+                # Use git revert command
+                git_repo.git.revert('--no-edit', 'HEAD')
+                
+                # Get the new revert commit
+                revert_commit = git_repo.head.commit
+                
+                # Push to remote
+                origin = git_repo.remote('origin')
+                
+                try:
+                    origin.push(refspec=f'{current_branch}:{current_branch}')
+                except GitCommandError as push_error:
+                    # If push fails, try to pull and push again
+                    logger.warning(f"Initial push failed, trying pull-rebase: {push_error}")
+                    try:
+                        git_repo.git.pull('--rebase', 'origin', current_branch)
+                        origin.push(refspec=f'{current_branch}:{current_branch}')
+                    except GitCommandError as retry_error:
+                        logger.error(f"Push failed after rebase: {retry_error}")
+                        raise retry_error
+                
+                revert_commit_url = f"https://github.com/{repo_info['name']}/commit/{revert_commit.hexsha}"
+                
+                logger.info(f"Reverted commit {commit_sha[:8]} for user {user_id}")
+                return {
+                    'success': True,
+                    'repo_name': repo_info['name'],
+                    'branch': current_branch,
+                    'reverted_commit': commit_sha,
+                    'reverted_message': commit_message,
+                    'revert_commit': revert_commit.hexsha,
+                    'revert_commit_url': revert_commit_url,
+                    'is_main_branch': current_branch in ['main', 'master']
+                }
+                
+            except GitCommandError as revert_error:
+                # Handle merge conflicts or other revert issues
+                error_msg = str(revert_error)
+                if 'merge conflict' in error_msg.lower() or 'conflicts' in error_msg.lower():
+                    # Reset to clean state if there are conflicts
+                    try:
+                        git_repo.git.revert('--abort')
+                    except:
+                        pass
+                    return {
+                        'success': False, 
+                        'error': 'Revert would cause merge conflicts. Manual intervention required'
+                    }
+                else:
+                    return {'success': False, 'error': f'Revert failed: {error_msg}'}
+            
+        except GitCommandError as e:
+            logger.error(f"Git error reverting commit for user {user_id}: {e}")
+            return {'success': False, 'error': f"Git error: {e}"}
+        except Exception as e:
+            logger.error(f"Error reverting commit for user {user_id}: {e}")
+            return {'success': False, 'error': str(e)}
+    
     def get_repo_status(self, user_id: int) -> Dict[str, Any]:
         """Get current repository status."""
         if user_id not in self.active_repos:
