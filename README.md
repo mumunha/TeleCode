@@ -68,7 +68,20 @@
 1. Click the deploy button above
 2. Set the following environment variables:
 
-**For Together AI (Recommended):**
+**For OpenRouter (Recommended):**
+```env
+BOT_TOKEN=your_telegram_bot_token
+LLM_PROVIDER=openrouter
+OPENROUTER_API_KEY=your_openrouter_api_key
+OPENROUTER_MODEL=openai/gpt-4o
+GITHUB_TOKEN=your_github_personal_access_token
+AUTHORIZED_TELEGRAM_USERS=your_telegram_user_id
+# Optional for leaderboards
+OPENROUTER_SITE_URL=https://yoursite.com
+OPENROUTER_SITE_NAME=YourSiteName
+```
+
+**For Together AI (Cost-Effective):**
 ```env
 BOT_TOKEN=your_telegram_bot_token
 LLM_PROVIDER=together
@@ -78,14 +91,6 @@ GITHUB_TOKEN=your_github_personal_access_token
 AUTHORIZED_TELEGRAM_USERS=your_telegram_user_id
 ```
 
-**For Anthropic Claude:**
-```env
-BOT_TOKEN=your_telegram_bot_token
-LLM_PROVIDER=anthropic
-ANTHROPIC_API_KEY=your_anthropic_api_key  
-GITHUB_TOKEN=your_github_personal_access_token
-AUTHORIZED_TELEGRAM_USERS=your_telegram_user_id
-```
 
 **For OpenAI:**
 ```env
@@ -198,14 +203,20 @@ AUTHORIZED_TELEGRAM_USERS=your_telegram_user_id
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Telegram Bot  │ -> │  Claude Code    │ -> │   GitHub API    │
-│   (webhook)     │    │     SDK         │    │  (PyGithub)     │
+│   Telegram Bot  │ -> │   LLM Provider  │ -> │  GitHub Manager │
+│    (bot.py)     │    │ (OpenRouter/etc)│    │ (github_mgr.py) │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
          v                       v                       v
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Security      │    │   Repository    │    │   Git Operations│
-│   Manager       │    │   Management    │    │   & Commits     │
+│   Security      │    │   Chat Context  │    │ Advanced Repo   │
+│   Manager       │    │   Manager       │    │ Context System  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         v                       v                       v
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  Localization   │    │ Approval Manager│    │   File Creation │
+│   Manager       │    │ (future feature)│    │   & Git Commits │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
