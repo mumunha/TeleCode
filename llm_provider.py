@@ -4,6 +4,7 @@ import time
 from openai import AsyncOpenAI
 from typing import List, Dict, Any
 from dataclasses import dataclass
+from advanced_context import AdvancedRepositoryContext
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,7 @@ class LLMMessage:
 class LLMProvider:
     def __init__(self):
         self.provider = os.environ.get('LLM_PROVIDER', 'openai').lower()
+        self.advanced_context = AdvancedRepositoryContext()
         self.setup_client()
     
     def setup_client(self):
@@ -103,14 +105,27 @@ class LLMProvider:
         # Add current prompt
         messages.append({"role": "user", "content": prompt})
         
-        # Add repository context if available
+        # Add comprehensive repository context if available
         if repo_path and os.path.exists(repo_path):
-            repo_context = self._get_repository_context(repo_path)
-            if repo_context:
-                messages.insert(-1, {
-                    "role": "system", 
-                    "content": f"Repository context:\n{repo_context}"
-                })
+            try:
+                context_result = self.advanced_context.get_comprehensive_context(repo_path, prompt)
+                formatted_context = self.advanced_context.format_context_for_llm(context_result)
+                
+                if formatted_context:
+                    messages.insert(-1, {
+                        "role": "system", 
+                        "content": f"Repository context:\n{formatted_context}"
+                    })
+                    logger.info(f"Added comprehensive context: {context_result.total_files} files, ~{context_result.total_tokens} tokens")
+            except Exception as e:
+                logger.error(f"Failed to get advanced context, falling back to basic: {e}")
+                # Fallback to basic context
+                repo_context = self._get_repository_context(repo_path)
+                if repo_context:
+                    messages.insert(-1, {
+                        "role": "system", 
+                        "content": f"Repository context:\n{repo_context}"
+                    })
         
         response = await self._make_api_call(messages)
         return response
@@ -130,14 +145,27 @@ class LLMProvider:
         # Add current prompt
         messages.append({"role": "user", "content": prompt})
         
-        # Add repository context if available
+        # Add comprehensive repository context if available
         if repo_path and os.path.exists(repo_path):
-            repo_context = self._get_repository_context(repo_path)
-            if repo_context:
-                messages.insert(-1, {
-                    "role": "system", 
-                    "content": f"Repository context:\n{repo_context}"
-                })
+            try:
+                context_result = self.advanced_context.get_comprehensive_context(repo_path, prompt)
+                formatted_context = self.advanced_context.format_context_for_llm(context_result)
+                
+                if formatted_context:
+                    messages.insert(-1, {
+                        "role": "system", 
+                        "content": f"Repository context:\n{formatted_context}"
+                    })
+                    logger.info(f"Added comprehensive context: {context_result.total_files} files, ~{context_result.total_tokens} tokens")
+            except Exception as e:
+                logger.error(f"Failed to get advanced context, falling back to basic: {e}")
+                # Fallback to basic context
+                repo_context = self._get_repository_context(repo_path)
+                if repo_context:
+                    messages.insert(-1, {
+                        "role": "system", 
+                        "content": f"Repository context:\n{repo_context}"
+                    })
         
         response = await self._make_streaming_api_call(messages)
         return response

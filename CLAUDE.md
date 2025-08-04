@@ -145,13 +145,34 @@ For OpenRouter provider, set:
 - **User Feedback**: All errors provide user-friendly messages while logging technical details
 - **Resource Cleanup**: Temporary directories cleaned up via `GitHubManager.cleanup()`
 
-## Repository Context Analysis
+## Advanced Repository Context System
 
-The bot analyzes target repositories to provide better AI responses:
-- **Structure Analysis**: Builds file tree (limited depth/count for performance)
-- **Configuration Detection**: Reads `package.json`, `requirements.txt`, etc.
-- **Language Detection**: Uses GitHub API language detection
-- **Pattern Following**: AI instructed to follow existing code patterns and conventions
+The bot uses an intelligent context system to provide comprehensive codebase awareness:
+
+### Core Features
+- **Intelligent File Selection**: Analyzes prompt keywords to select most relevant files
+- **Actual Code Content**: Includes real source code content, not just file names
+- **Multi-Language Support**: Understands 25+ programming languages
+- **File Relationship Mapping**: Tracks imports and dependencies between files
+- **Token-Aware Management**: Optimizes context within LLM token limits
+
+### Context Collection Process
+1. **Repository Scanning**: Discovers all relevant files in the codebase
+2. **Prompt Analysis**: Extracts keywords and technical terms from user requests
+3. **Relevance Scoring**: Ranks files by importance and relevance to the prompt
+4. **Smart Selection**: Chooses optimal file set within token/count limits
+5. **Content Reading**: Includes actual source code content for selected files
+6. **Relationship Analysis**: Maps file dependencies and imports
+7. **Caching**: Caches results for improved performance
+
+### Configuration Options
+- `REPO_CONTEXT_MAX_TOKENS`: Maximum tokens for repository context (default: 15000)
+- `REPO_CONTEXT_MAX_FILES`: Maximum number of files to include (default: 20)  
+- `REPO_CONTEXT_MAX_FILE_SIZE`: Maximum characters per file (default: 10000)
+- `REPO_CONTEXT_DEPTH`: Maximum directory depth to scan (default: 3)
+
+### Supported Languages
+Python, JavaScript, TypeScript, Java, C/C++, C#, Go, Rust, PHP, Ruby, Swift, Kotlin, Scala, R, SQL, HTML, CSS, YAML, JSON, Markdown, and more.
 
 ## Available Commands
 
