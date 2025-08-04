@@ -112,6 +112,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 • {localization_manager.get_text(user_id, "cmd_clear")}
 • {localization_manager.get_text(user_id, "cmd_help")}
 • {localization_manager.get_text(user_id, "cmd_lang")}
+• {localization_manager.get_text(user_id, "cmd_model")}
 
 {example_header}
 /repo `https://github.com/user/repo`
@@ -163,6 +164,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 • /start - {localization_manager.get_text(user_id, "help_start_desc")}
 • /help - {localization_manager.get_text(user_id, "help_help_desc")}
 • /lang - {localization_manager.get_text(user_id, "help_lang_desc")}
+• /model [provider] [model] - {localization_manager.get_text(user_id, "help_model_desc")}
 
 {usage_examples}
 • /repo `https://github.com/username/my-project`
@@ -538,6 +540,13 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if context_summary['last_interaction']:
             status_message += f"• Last interaction: {context_summary['last_interaction'][:19]}\n"
         
+        # Add LLM provider info
+        provider_info = llm_provider.get_provider_info()
+        status_message += f"\n**🤖 LLM Provider:**\n"
+        status_message += f"• Provider: {provider_info['provider'].title()}\n"
+        status_message += f"• Model: {provider_info['model']}\n"
+        status_message += f"• Available: {'✅' if provider_info['available'] else '❌'}\n"
+        
         await safe_send_message(update, status_message)
         
     except Exception as e:
@@ -705,6 +714,71 @@ async def lang_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         logger.error(f"Error in lang command for user {user_id}: {e}")
         await update.message.reply_text(localization_manager.get_text(user_id, "error_occurred"))
 
+async def model_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Model/provider selection command handler."""
+    user_id = update.effective_user.id
+    
+    if not security_manager.is_user_authorized(user_id):
+        await update.message.reply_text(localization_manager.get_text(user_id, "unauthorized"))
+        return
+    
+    try:
+        if not context.args:
+            # Show current provider/model and available options
+            provider_info = llm_provider.get_available_providers()
+            
+            message = f"🤖 **Current LLM Configuration:**\n\n"
+            message += f"**Active Provider:** {provider_info['current_provider'].title()}\n"
+            message += f"**Active Model:** {llm_provider.model}\n\n"
+            
+            message += f"**Available Providers ({provider_info['available_count']}/3):**\n\n"
+            
+            for provider_key, provider_data in provider_info['providers'].items():
+                status_emoji = "✅" if provider_data['available'] else "❌"
+                active_emoji = "🔹 " if provider_key == provider_info['current_provider'] else ""
+                
+                message += f"{active_emoji}{status_emoji} **{provider_data['name']}**\n"
+                message += f"   • Model: {provider_data['current_model']}\n"
+                if not provider_data['available']:
+                    message += f"   • Status: Missing API key\n"
+                message += "\n"
+            
+            message += "**Usage:**\n"
+            message += "• `/model <provider>` - Switch provider (e.g., `/model openai`)\n"
+            message += "• `/model <provider> <model>` - Switch provider and model\n"
+            message += "• Available providers: `openai`, `together`, `openrouter`\n\n"
+            message += "**Examples:**\n"
+            message += "• `/model openai`\n"
+            message += "• `/model together meta-llama/Llama-3.3-70B-Instruct-Turbo`\n"
+            message += "• `/model openrouter anthropic/claude-3-sonnet`"
+            
+            await safe_send_message(update, message)
+            return
+        
+        # User wants to change provider/model
+        new_provider = context.args[0].lower()
+        new_model = ' '.join(context.args[1:]) if len(context.args) > 1 else None
+        
+        # Attempt to change provider
+        result = llm_provider.change_provider(new_provider, new_model)
+        
+        if result['success']:
+            message = f"✅ **LLM Provider Changed Successfully!**\n\n"
+            message += f"**From:** {result['old_provider'].title()} ({result['old_model']})\n"
+            message += f"**To:** {result['new_provider'].title()} ({result['new_model']})\n\n"
+            message += "The new provider will be used for all future `/code` requests."
+            
+            await safe_send_message(update, message)
+        else:
+            message = f"❌ **Failed to change LLM provider:**\n\n{result['error']}\n\n"
+            message += "Use `/model` without arguments to see available providers."
+            
+            await safe_send_message(update, message)
+            
+    except Exception as e:
+        logger.error(f"Error in model command for user {user_id}: {e}")
+        await update.message.reply_text(localization_manager.get_text(user_id, "error_occurred"))
+
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle text messages including language selection."""
     user_id = update.effective_user.id
@@ -783,6 +857,7 @@ async def main() -> None:
     application.add_handler(CommandHandler('tokens', tokens_command))
     application.add_handler(CommandHandler('clear', clear_command))
     application.add_handler(CommandHandler('lang', lang_command))
+    application.add_handler(CommandHandler('model', model_command))
     
     # Add message handler for non-commands
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))

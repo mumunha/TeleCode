@@ -1,9 +1,8 @@
 import os
 import logging
-import openai
 import time
 from openai import AsyncOpenAI
-from typing import List, Dict, Any, AsyncGenerator
+from typing import List, Dict, Any
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -425,6 +424,92 @@ Always provide practical, actionable solutions that can be directly implemented.
             return False
         except Exception:
             return False
+    
+    def change_provider(self, new_provider: str, new_model: str = None) -> Dict[str, Any]:
+        """Change the LLM provider and optionally the model."""
+        supported_providers = ['openai', 'together', 'openrouter']
+        
+        if new_provider.lower() not in supported_providers:
+            return {
+                'success': False,
+                'error': f"Unsupported provider: {new_provider}. Supported: {', '.join(supported_providers)}"
+            }
+        
+        old_provider = self.provider
+        old_model = getattr(self, 'model', 'unknown')
+        
+        try:
+            # Set new provider
+            self.provider = new_provider.lower()
+            
+            # Override model if provided
+            if new_model:
+                os.environ[f'{self.provider.upper()}_MODEL'] = new_model
+            
+            # Reinitialize client with new provider
+            self.setup_client()
+            
+            # Check if new provider is available
+            if not self._check_provider_availability():
+                # Rollback
+                self.provider = old_provider
+                self.setup_client()
+                return {
+                    'success': False,
+                    'error': f"Provider {new_provider} is not properly configured (missing API key)"
+                }
+            
+            logger.info(f"Successfully changed LLM provider from {old_provider} to {self.provider}")
+            return {
+                'success': True,
+                'old_provider': old_provider,
+                'old_model': old_model,
+                'new_provider': self.provider,
+                'new_model': self.model
+            }
+            
+        except Exception as e:
+            # Rollback on error
+            self.provider = old_provider
+            try:
+                self.setup_client()
+            except:
+                pass
+            
+            logger.error(f"Error changing provider to {new_provider}: {e}")
+            return {
+                'success': False,
+                'error': f"Failed to change provider: {str(e)}"
+            }
+    
+    def get_available_providers(self) -> Dict[str, Any]:
+        """Get list of available providers with their configuration status."""
+        providers = {
+            'openai': {
+                'name': 'OpenAI',
+                'available': bool(os.environ.get('OPENAI_API_KEY')),
+                'default_model': 'gpt-4',
+                'current_model': os.environ.get('OPENAI_MODEL', 'gpt-4')
+            },
+            'together': {
+                'name': 'Together AI',
+                'available': bool(os.environ.get('TOGETHER_API_KEY')),
+                'default_model': 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
+                'current_model': os.environ.get('TOGETHER_MODEL', 'meta-llama/Llama-3.3-70B-Instruct-Turbo')
+            },
+            'openrouter': {
+                'name': 'OpenRouter',
+                'available': bool(os.environ.get('OPENROUTER_API_KEY')),
+                'default_model': 'openai/gpt-4o',
+                'current_model': os.environ.get('OPENROUTER_MODEL', 'openai/gpt-4o')
+            }
+        }
+        
+        return {
+            'current_provider': self.provider,
+            'providers': providers,
+            'available_count': sum(1 for p in providers.values() if p['available'])
+        }
     
     def has_file_changes(self, response: str) -> bool:
         """Check if the AI response contains file creation/modification instructions."""

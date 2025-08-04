@@ -66,6 +66,7 @@ class LocalizationManager:
                 "cmd_clear": "/clear - Clear chat context history",
                 "cmd_help": "/help - Show detailed help",
                 "cmd_lang": "/lang - Change language (English/Portuguese)",
+                "cmd_model": "/model [provider] [model] - Change LLM provider/model",
                 
                 # Help command
                 "help_title": "📚 **TeleCode Bot Help**",
@@ -92,6 +93,7 @@ class LocalizationManager:
                 "help_start_desc": "Show welcome message and basic commands",
                 "help_help_desc": "Show this detailed help (current command)",
                 "help_lang_desc": "Change language between English and Portuguese",
+                "help_model_desc": "Change LLM provider (openai/together/openrouter) and model",
                 
                 # Security text
                 "help_security_text": "• All operations are logged for security\n• Rate limits apply to prevent abuse (see /status)\n• Only authorized users can access the bot\n• Chat context is persistent and private per user",
@@ -237,6 +239,7 @@ class LocalizationManager:
                 "cmd_clear": "/clear - Limpar histórico do chat",
                 "cmd_help": "/help - Mostrar ajuda detalhada",
                 "cmd_lang": "/lang - Alterar idioma (Inglês/Português)",
+                "cmd_model": "/model [provedor] [modelo] - Alterar provedor/modelo LLM",
                 
                 # Help command
                 "help_title": "📚 **Ajuda do TeleCode Bot**",
@@ -263,6 +266,7 @@ class LocalizationManager:
                 "help_start_desc": "Mostrar mensagem de boas-vindas e comandos básicos",
                 "help_help_desc": "Mostrar esta ajuda detalhada (comando atual)",
                 "help_lang_desc": "Alterar idioma entre Inglês e Português",
+                "help_model_desc": "Alterar provedor LLM (openai/together/openrouter) e modelo",
                 
                 # Security text
                 "help_security_text": "• Todas as operações são registradas para segurança\n• Limites de taxa se aplicam para prevenir abuso (veja /status)\n• Apenas usuários autorizados podem acessar o bot\n• Contexto do chat é persistente e privado por usuário",
