@@ -26,6 +26,14 @@
 - Repository access control
 - Secure token management
 
+📝 **Advanced Features**
+- **Intelligent Repository Context**: Analyzes codebase structure and includes relevant files automatically
+- **Chat Context Management**: Maintains conversation history for improved AI responses
+- **Multi-Language Support**: Full English and Portuguese localization with persistent preferences
+- **Smart File Selection**: Uses keyword analysis to select most relevant files for context
+- **Token Management**: Built-in cost estimation and token counting
+- **Flexible Git Strategy**: Choose between branch-based or direct commits
+
 ## Commands
 
 - `/start` - Get started with the bot
@@ -118,9 +126,9 @@ AUTHORIZED_TELEGRAM_USERS=your_telegram_user_id
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `BOT_TOKEN` | Telegram bot token from BotFather | `123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11` |
-| `LLM_PROVIDER` | LLM provider (`together`, `anthropic`, `openai`) | `together` |
+| `LLM_PROVIDER` | LLM provider (`openrouter`, `together`, `openai`) | `openrouter` |
 | `TOGETHER_API_KEY` | Together AI API key (if using Together) | `your-together-api-key` |
-| `ANTHROPIC_API_KEY` | Anthropic API key (if using Anthropic) | `sk-ant-api03-...` |
+| `OPENROUTER_API_KEY` | OpenRouter API key (if using OpenRouter) | `sk-or-v1-...` |
 | `OPENAI_API_KEY` | OpenAI API key (if using OpenAI) | `sk-proj-...` |
 | `GITHUB_TOKEN` | GitHub personal access token | `ghp_1234567890abcdef...` |
 
