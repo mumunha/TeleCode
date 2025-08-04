@@ -1,6 +1,10 @@
-# Claude Code Telegram Bot
-
-A powerful Telegram bot that integrates with Claude Code SDK to help you with coding tasks and automatically commit changes to your GitHub repositories.
+<div align="center">
+  <img src="img/telecodelogo.png" alt="TeleCode Logo" width="200"/>
+  
+  # TeleCode Bot
+  
+  *A powerful Telegram bot that integrates multiple LLM providers to help you with coding tasks and automatically commit changes to your GitHub repositories.*
+</div>
 
 ## Features
 
