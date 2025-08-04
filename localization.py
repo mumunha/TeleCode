@@ -218,6 +218,23 @@ class LocalizationManager:
                 "tokens_estimated_cost": "💰 **Estimated Cost:** ${cost:.4f} (input only)",
                 "tokens_estimated_cost_precise": "💰 **Estimated Cost:** ${cost:.6f} (input only)",
                 "tokens_environment": "**Environment:** Max messages = {max}",
+                
+                # Approval system
+                "approval_title": "⚠️ **Changes Require Approval**",
+                "approval_description": "The following changes will be made to your repository:",
+                "approval_approve": "✅ Approve & Commit",
+                "approval_reject": "❌ Reject Changes",
+                "approval_show_details": "📋 Show Details",
+                "approval_timeout": "⏰ This approval expires in {minutes} minutes",
+                "approval_approved": "✅ **Changes Approved!**",
+                "approval_committing": "🔄 **Committing approved changes...**",
+                "approval_rejected": "❌ **Changes Rejected**",
+                "approval_rejected_desc": "The proposed changes have been discarded.",
+                "approval_expired": "⏰ **Approval Expired**",
+                "approval_expired_desc": "Your approval request has expired. Please run the command again.",
+                "approval_no_pending": "ℹ️ **No Pending Approval**",
+                "approval_no_pending_desc": "You don't have any changes waiting for approval.",
+                "approval_error": "❌ **Approval Error:** {error}",
             },
             
             "pt-br": {
@@ -392,6 +409,23 @@ class LocalizationManager:
                 "tokens_estimated_cost": "💰 **Custo Estimado:** ${cost:.4f} (apenas entrada)",
                 "tokens_estimated_cost_precise": "💰 **Custo Estimado:** ${cost:.6f} (apenas entrada)",
                 "tokens_environment": "**Ambiente:** Máximo de mensagens = {max}",
+                
+                # Approval system
+                "approval_title": "⚠️ **Alterações Requerem Aprovação**",
+                "approval_description": "As seguintes alterações serão feitas no seu repositório:",
+                "approval_approve": "✅ Aprovar & Fazer Commit",
+                "approval_reject": "❌ Rejeitar Alterações",
+                "approval_show_details": "📋 Mostrar Detalhes",
+                "approval_timeout": "⏰ Esta aprovação expira em {minutes} minutos",
+                "approval_approved": "✅ **Alterações Aprovadas!**",
+                "approval_committing": "🔄 **Fazendo commit das alterações aprovadas...**",
+                "approval_rejected": "❌ **Alterações Rejeitadas**",
+                "approval_rejected_desc": "As alterações propostas foram descartadas.",
+                "approval_expired": "⏰ **Aprovação Expirada**",
+                "approval_expired_desc": "Sua solicitação de aprovação expirou. Execute o comando novamente.",
+                "approval_no_pending": "ℹ️ **Nenhuma Aprovação Pendente**",
+                "approval_no_pending_desc": "Você não tem alterações aguardando aprovação.",
+                "approval_error": "❌ **Erro de Aprovação:** {error}",
             }
         }
     

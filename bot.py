@@ -1,6 +1,7 @@
 import os
 import logging
 import asyncio
+import time
 from typing import Dict, Any
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
@@ -11,6 +12,7 @@ from security import SecurityManager
 from llm_provider import LLMProvider
 from chat_context import ChatContextManager
 from localization import LocalizationManager
+from approval_manager import ApprovalManager
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -25,6 +27,7 @@ security_manager = None
 llm_provider = None
 chat_context_manager = None
 localization_manager = None
+approval_manager = None
 
 def escape_markdown_v2(text: str) -> str:
     """Escape special characters for Telegram MarkdownV2."""
@@ -428,65 +431,45 @@ async def code_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         has_changes = llm_provider.has_file_changes(final_response)
         
         if has_changes:
-            # Check Git strategy - direct commits to main or branch workflow
-            git_strategy = os.environ.get('GIT_STRATEGY', 'branch').lower()
-            
-            if git_strategy == 'direct':
-                # Direct commit to main branch (no branch creation)
-                await update.message.reply_text(localization_manager.get_text(user_id, "code_committing"), parse_mode='Markdown')
-            else:
-                # Traditional branch workflow
-                branch_name = f"telecode-{int(asyncio.get_running_loop().time())}"
-                branch_result = github_manager.create_branch(user_id, branch_name)
-                if not branch_result['success']:
-                    await update.message.reply_text(f"❌ Failed to create branch: {branch_result['error']}")
-                    return
-                await update.message.reply_text(f"🔄 **Created branch: {branch_name}**", parse_mode='Markdown')
-            
             # Extract and create files from AI response
             file_creation_result = llm_provider.extract_and_create_files(
                 final_response, 
                 clone_result['local_path']
             )
             
-            # Commit and push changes
-            commit_message = security_manager.sanitize_commit_message(
-                f"AI Code: {prompt[:100]}{'...' if len(prompt) > 100 else ''}"
-            )
-            
-            commit_result = github_manager.commit_and_push(
-                user_id, 
-                commit_message,
-                author_name="TeleCode Bot",
-                author_email="telecode-bot@telegram.org"
-            )
-            
-            if commit_result['success']:
-                git_strategy = os.environ.get('GIT_STRATEGY', 'branch').lower()
-                is_main_branch = commit_result.get('is_main_branch', False)
+            if file_creation_result['success']:
+                # Detect changes and create summary for approval
+                changes_summary = approval_manager.detect_changes(
+                    clone_result['local_path'], 
+                    final_response
+                )
                 
-                if git_strategy == 'direct' and is_main_branch:
-                    response = f"✅ **Code changes committed directly to main branch!**\n\n"
-                    response += f"🚀 **Railway should automatically deploy these changes.**\n\n"
+                if changes_summary:
+                    # Store pending approval
+                    approval_id = approval_manager.store_pending_approval(user_id, changes_summary)
+                    
+                    # Format changes summary for user
+                    summary_text = approval_manager.format_changes_summary(changes_summary)
+                    
+                    # Create approval keyboard
+                    keyboard = [
+                        ["✅ Approve & Commit", "❌ Reject Changes"],
+                        ["📋 Show Details"]
+                    ]
+                    reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
+                    
+                    approval_message = f"{summary_text}\n\n"
+                    approval_message += "**⚠️ Please review and approve these changes before committing to the repository.**\n\n"
+                    approval_message += f"⏰ This approval will expire in {approval_manager.approval_timeout // 60} minutes."
+                    
+                    # Add assistant response to chat context
+                    chat_context_manager.add_assistant_message(user_id, final_response, current_repo)
+                    
+                    await update.message.reply_text(approval_message, reply_markup=reply_markup)
                 else:
-                    response = f"✅ **Code changes implemented successfully!**\n\n"
-                
-                response += f"**Branch:** {commit_result['branch']}\n"
-                response += f"**Commit:** [View Changes]({commit_result['commit_url']})\n"
-                
-                if file_creation_result['success'] and file_creation_result['count'] > 0:
-                    response += f"**Files Modified:** {', '.join(file_creation_result['files_created'])}\n"
-                
-                # Clean the AI response to avoid markdown parsing issues
-                clean_response = safe_markdown_response(final_response[:800])
-                response += f"\n**AI Response:**\n{clean_response}{'...' if len(final_response) > 800 else ''}"
-                
-                # Add assistant response to chat context
-                chat_context_manager.add_assistant_message(user_id, final_response, current_repo)
-                
-                await safe_send_message(update, response)
+                    await update.message.reply_text("❌ No changes detected in the repository.")
             else:
-                await update.message.reply_text(f"❌ Failed to commit changes: {commit_result['error']}")
+                await update.message.reply_text(f"❌ Failed to create files: {file_creation_result.get('error', 'Unknown error')}")
         else:
             # This is a read-only/informational request - no commits needed
             response = f"💬 **Analysis completed (no code changes needed):**\n\n"
@@ -821,12 +804,126 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 await safe_send_message(update, message)
         return
     
+    # Check if this is an approval/rejection response
+    approval_buttons = ["✅ Approve & Commit", "❌ Reject Changes", "📋 Show Details"]
+    if message_text in approval_buttons:
+        if message_text == "✅ Approve & Commit":
+            await handle_approval(update, user_id, approve=True)
+        elif message_text == "❌ Reject Changes":
+            await handle_approval(update, user_id, approve=False)
+        elif message_text == "📋 Show Details":
+            await handle_show_details(update, user_id)
+        return
+    
     # Default echo response
     if security_manager.is_user_authorized(user_id):
         help_text = localization_manager.get_text(user_id, "start_description")
         await update.message.reply_text(f"👋 {help_text} Use /help to see what I can do for you!")
     else:
         await update.message.reply_text(localization_manager.get_text(user_id, "unauthorized"))
+
+async def handle_approval(update: Update, user_id: int, approve: bool):
+    """Handle approval or rejection of pending changes."""
+    try:
+        if approve:
+            # Get and approve pending changes
+            changes = approval_manager.approve_changes(user_id)
+            if not changes:
+                await update.message.reply_text("❌ No pending changes found to approve.")
+                return
+            
+            await update.message.reply_text("⚡ Committing approved changes...")
+            
+            # Check Git strategy for branching
+            git_strategy = os.environ.get('GIT_STRATEGY', 'branch').lower()
+            
+            if git_strategy != 'direct':
+                # Create branch for changes
+                branch_name = f"telecode-{int(time.time())}"
+                branch_result = github_manager.create_branch(user_id, branch_name)
+                if not branch_result['success']:
+                    await update.message.reply_text(f"❌ Failed to create branch: {branch_result['error']}")
+                    return
+            
+            # Commit and push changes
+            commit_result = github_manager.commit_and_push(
+                user_id,
+                changes.commit_message,
+                author_name="TeleCode Bot",
+                author_email="telecode-bot@telegram.org"
+            )
+            
+            if commit_result['success']:
+                is_main_branch = commit_result.get('is_main_branch', False)
+                
+                if git_strategy == 'direct' and is_main_branch:
+                    response = "✅ **Changes committed directly to main branch!**\n\n"
+                    response += "🚀 **Railway should automatically deploy these changes.**\n\n"
+                else:
+                    response = "✅ **Changes committed successfully!**\n\n"
+                
+                response += f"**Repository:** {changes.repo_name}\n"
+                response += f"**Branch:** {commit_result['branch']}\n"
+                response += f"**Files:** {len(changes.files_created + changes.files_modified + changes.files_deleted)} files affected\n"
+                response += f"**Commit:** [View Changes]({commit_result['commit_url']})"
+                
+                await safe_send_message(update, response)
+            else:
+                await update.message.reply_text(f"❌ Failed to commit changes: {commit_result['error']}")
+        else:
+            # Reject changes
+            if approval_manager.reject_changes(user_id):
+                await update.message.reply_text("❌ **Changes rejected and discarded.**\n\nThe repository remains unchanged.")
+            else:
+                await update.message.reply_text("❌ No pending changes found to reject.")
+                
+    except Exception as e:
+        logger.error(f"Error handling approval for user {user_id}: {e}")
+        await update.message.reply_text("❌ An error occurred while processing your approval.")
+
+async def handle_show_details(update: Update, user_id: int):
+    """Show detailed information about pending changes."""
+    try:
+        changes = approval_manager.get_pending_approval(user_id)
+        if not changes:
+            await update.message.reply_text("❌ No pending changes found.")
+            return
+        
+        # Format detailed view
+        details = []
+        details.append(f"📋 **Detailed Changes for {changes.repo_name}**")
+        details.append(f"🌿 **Branch:** {changes.branch_name}")
+        details.append("")
+        
+        # Show actual file contents for small changes
+        for file_change in changes.file_changes[:3]:  # Limit to first 3 files
+            details.append(f"**📄 {file_change.file_path}** ({file_change.change_type})")
+            
+            if file_change.change_type == 'created' and file_change.new_content:
+                content_preview = file_change.new_content[:500]
+                details.append(f"```\n{content_preview}{'...' if len(file_change.new_content) > 500 else ''}\n```")
+            elif file_change.change_type == 'modified':
+                details.append(f"Lines: +{file_change.lines_added} -{file_change.lines_removed}")
+            
+            details.append("")
+        
+        if len(changes.file_changes) > 3:
+            details.append(f"... and {len(changes.file_changes) - 3} more files")
+        
+        details.append(f"**💬 Commit Message:**")
+        details.append(f"```\n{changes.commit_message}\n```")
+        
+        # Recreate approval keyboard
+        keyboard = [
+            ["✅ Approve & Commit", "❌ Reject Changes"]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
+        
+        await update.message.reply_text("\n".join(details), reply_markup=reply_markup)
+        
+    except Exception as e:
+        logger.error(f"Error showing details for user {user_id}: {e}")
+        await update.message.reply_text("❌ An error occurred while retrieving change details.")
 
 async def webhook_handler(request: Request) -> web.Response:
     """Handle incoming webhook requests."""
@@ -838,7 +935,7 @@ async def webhook_handler(request: Request) -> web.Response:
 
 async def main() -> None:
     """Start the bot."""
-    global github_manager, security_manager, llm_provider, chat_context_manager, localization_manager
+    global github_manager, security_manager, llm_provider, chat_context_manager, localization_manager, approval_manager
     
     # Check required environment variables based on LLM provider
     llm_provider_type = os.environ.get('LLM_PROVIDER', 'openai').lower()
@@ -867,6 +964,7 @@ async def main() -> None:
     llm_provider = LLMProvider()
     chat_context_manager = ChatContextManager()
     localization_manager = LocalizationManager()
+    approval_manager = ApprovalManager()
     
     token = os.environ.get('BOT_TOKEN')
     application = Application.builder().token(token).build()
