@@ -769,17 +769,15 @@ async def revert_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
     
     # Check rate limit
-    rate_limit_result = security_manager.can_make_request(user_id)
-    if not rate_limit_result['allowed']:
-        if rate_limit_result['limit_type'] == 'hourly':
-            minutes_left = rate_limit_result['reset_in'] // 60
+    rate_check = security_manager.check_rate_limit(user_id)
+    if not rate_check['allowed']:
+        if rate_check['reason'] == 'hourly_limit_exceeded':
             await update.message.reply_text(
-                localization_manager.get_text(user_id, "hourly_limit", minutes=minutes_left)
+                localization_manager.get_text(user_id, "hourly_limit", minutes=rate_check['reset_in_minutes'])
             )
         else:
-            hours_left = rate_limit_result['reset_in'] // 3600
             await update.message.reply_text(
-                localization_manager.get_text(user_id, "daily_limit", hours=hours_left)
+                localization_manager.get_text(user_id, "daily_limit", hours=rate_check['reset_in_hours'])
             )
         return
     
