@@ -233,18 +233,27 @@ async def repo_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.message.reply_text(localization_manager.get_text(user_id, "repo_setting_up"))
     
     try:
+        # First set the active repository
         result = github_manager.set_active_repo(user_id, repo_url)
         
         if result['success']:
-            message = f"{localization_manager.get_text(user_id, 'repo_success')}\n\n"
-            message += f"**Repository:** {result['repo_name']}\n"
-            if result.get('description'):
-                message += f"**Description:** {result['description']}\n"
-            if result.get('language'):
-                message += f"**Language:** {result['language']}\n"
-            message += f"\nYou can now use `/code <prompt>` to execute coding tasks!"
+            # Then immediately clone/update the repository locally
+            clone_result = await github_manager.clone_or_update_repo(user_id)
             
-            await safe_send_message(update, message)
+            if clone_result['success']:
+                message = f"{localization_manager.get_text(user_id, 'repo_success')}\n\n"
+                message += f"**Repository:** {result['repo_name']}\n"
+                if result.get('description'):
+                    message += f"**Description:** {result['description']}\n"
+                if result.get('language'):
+                    message += f"**Language:** {result['language']}\n"
+                message += f"**Branch:** {clone_result['branch']}\n"
+                message += f"**Local Path:** `{clone_result['local_path']}`\n"
+                message += f"\nRepository is now ready! You can use `/code <prompt>` to execute coding tasks or `/revert` to undo changes."
+                
+                await safe_send_message(update, message)
+            else:
+                await update.message.reply_text(localization_manager.get_text(user_id, "repo_failed", error=f"Repository set but clone failed: {clone_result['error']}"))
         else:
             await update.message.reply_text(localization_manager.get_text(user_id, "repo_failed", error=result['error']))
             
