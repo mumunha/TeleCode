@@ -211,6 +211,12 @@ async def repo_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     
     repo_url = context.args[0]
     
+    # Check if it's a valid GitHub URL format first
+    if not (repo_url.startswith('https://github.com/') or repo_url.startswith('git@github.com:')):
+        message = localization_manager.get_text(user_id, "repo_invalid_url", input=repo_url)
+        await safe_send_message(update, message)
+        return
+    
     # Validate repository access
     access_check = security_manager.validate_github_repo_access(user_id, repo_url)
     if not access_check['allowed']:

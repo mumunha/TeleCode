@@ -116,6 +116,7 @@ class LocalizationManager:
                 
                 # Repository commands
                 "repo_usage": "❌ Please provide a GitHub repository URL.\n\n**Usage:** /repo `<github_url>`\n**Example:** /repo `https://github.com/username/repository`",
+                "repo_invalid_url": "❌ Invalid GitHub URL format: `{input}`\n\n**Valid formats:**\n• `https://github.com/username/repository`\n• `git@github.com:username/repository.git`\n\n**Example:** /repo `https://github.com/octocat/Hello-World`",
                 "repo_setting_up": "🔄 Setting up repository...",
                 "repo_success": "✅ **Repository set successfully!**",
                 "repo_failed": "❌ Failed to set repository: {error}",
@@ -289,6 +290,7 @@ class LocalizationManager:
                 
                 # Repository commands
                 "repo_usage": "❌ Por favor, forneça uma URL do repositório GitHub.\n\n**Uso:** /repo `<github_url>`\n**Exemplo:** /repo `https://github.com/usuario/repositorio`",
+                "repo_invalid_url": "❌ Formato de URL do GitHub inválido: `{input}`\n\n**Formatos válidos:**\n• `https://github.com/usuario/repositorio`\n• `git@github.com:usuario/repositorio.git`\n\n**Exemplo:** /repo `https://github.com/octocat/Hello-World`",
                 "repo_setting_up": "🔄 Configurando repositório...",
                 "repo_success": "✅ **Repositório definido com sucesso!**",
                 "repo_failed": "❌ Falha ao definir repositório: {error}",
