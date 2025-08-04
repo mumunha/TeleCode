@@ -235,6 +235,10 @@ class GitHubManager:
             
             # Create a revert commit
             try:
+                # Set git config for the revert commit
+                git_repo.config_writer().set_value("user", "name", "TeleCode Bot").release()
+                git_repo.config_writer().set_value("user", "email", "telecode-bot@telegram.org").release()
+                
                 # Use git revert command
                 git_repo.git.revert('--no-edit', 'HEAD')
                 
