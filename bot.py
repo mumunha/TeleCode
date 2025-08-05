@@ -821,6 +821,9 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     
     prompt = ' '.join(context.args)
     
+    # Clear any pending approvals since this is a read-only operation
+    approval_manager.reject_changes(user_id)
+    
     await update.message.reply_text("📖 Analyzing codebase to answer your question...", parse_mode='Markdown')
     
     try:
