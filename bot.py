@@ -881,7 +881,7 @@ async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             return
         
         # Add AI response to chat context
-        chat_context_manager.add_ai_message(user_id, final_response, current_repo)
+        chat_context_manager.add_assistant_message(user_id, final_response, current_repo)
         
         # Send the analysis response to user
         await safe_send_message(update, final_response)
